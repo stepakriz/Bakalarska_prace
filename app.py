@@ -180,9 +180,18 @@ filter_end = st.sidebar.date_input(
     format="DD.MM.YYYY"
 )
 
-# Kontrola, aby uživatel nezadal konec dřív než začátek
+# --- LOGICKÉ KONTROLY A CHYBOVÉ HLÁŠKY ---
+
+# 1. Kontrola proti překřížení dat (konec před začátkem)
 if filter_start > filter_end:
-    st.error("Logická chyba: Počáteční datum ('Načíst OD') nesmí být po koncovém datu ('Načíst DO').")
+    st.error("❌ Logická chyba: Počáteční datum ('OD') nesmí být nastaveno až po koncovém datu ('DO').")
+    st.stop()
+
+# 2. Kontrola minimálního rozestupu 23 měsíců
+required_min_end = (pd.to_datetime(filter_start) + pd.DateOffset(months=23)).date()
+
+if filter_end < required_min_end:
+    st.sidebar.error(f"⚠️ Zvolené období je příliš krátké. Datum 'DO' musí být minimálně o 23 měsíců později než 'OD' (tj. alespoň {required_min_end.strftime('%d.%m.%Y')}).")
     st.stop()
 
 # Vytvoření odfiltrovaných datasetů pro výpočty v grafech a tabulkách
@@ -1076,32 +1085,36 @@ with tab_bazicky:
 
     # --- SEKCE 4: METODIKA CPI VS HICP ---
     hicp_help_text = (
-        "Pokud zvolíte bazický rok 1999 a starší, křivka evropské metodiky (HICP) se v grafu nevykreslí. "
-        "Je to dáno tím, že harmonizovaná data pro jsou k dispozici až od roku 2000."
+        "Pokud načtete období končící před únorem 2000 nebo zvolíte základ pro bazický index před rokem 2000, graf s HICP se nevykreslí. Data pro tuto časovou řadu se totiž počítají až od ledna 2000."
     )
     st.subheader("4. Metodické srovnání: národní (CPI) vs. evropský (HICP) index", help=hicp_help_text)
     st.markdown("Graf ukazuje rozdíl mezi úhrnným národním indexem (CPI) a harmonizovaným indexem EU (HICP). Zásadními faktory odlišnosti jsou započítávání nákladů na vlastnické bydlení (imputovaného nájemného) v českém indexu a naopak zahrnutí útrat cizinců spolu s každoroční aktualizací vah u evropského indexu.")
     
-    # Nalezení společného časového průniku obou indexů pro matematicky korektní porovnání
-    common_timeline = cpi_rebased.index.intersection(hicp_rebased.index)
+    # 1. Vyfiltrování měsíců, kde reálně jsou číselná data
+    valid_cpi_index = cpi_rebased[cpi_rebased[TOTAL_COL].notna()].index
+    valid_hicp_index = hicp_rebased[hicp_rebased[TOTAL_COL].notna()].index
+
+    # 2. Průnik pouze platných indexů
+    common_timeline = valid_cpi_index.intersection(valid_hicp_index)
     
-    if not common_timeline.empty:
+    # 3. Zobrazí se to AŽ KDYŽ tam budou minimálně 2 hodnoty
+    if len(common_timeline) >= 2:
         cpi_common = cpi_rebased.loc[common_timeline, TOTAL_COL]
         hicp_common = hicp_rebased.loc[common_timeline, TOTAL_COL]
 
         dates_common_cz = format_dates_cz(common_timeline)
 
-        # Předvýpočet přesných rozdílů mezi indexy, které se zobrazí v interaktivním informačním okně (hover text)
+        # Předvýpočet přesných rozdílů mezi indexy
         diff_cpi_hicp = cpi_common - hicp_common
         diff_hicp_cpi = hicp_common - cpi_common
         
-        # Příprava vícerozměrných dat pro Plotly customdata (spojení data a vypočtené hodnoty)
+        # Příprava vícerozměrných dat pro Plotly customdata
         custom_data_cpi = np.column_stack((dates_common_cz, diff_cpi_hicp))
         custom_data_hicp = np.column_stack((dates_common_cz, diff_hicp_cpi))
 
         fig_methodology = go.Figure()
         
-        # Vykreslení evropského HICP (čárkovaně, protože se jedná o sekundární pohled)
+        # Vykreslení evropského HICP
         fig_methodology.add_trace(go.Scatter(
             x=hicp_common.index, 
             y=hicp_common, 
@@ -1112,7 +1125,7 @@ with tab_bazicky:
             hovertemplate="<b>%{customdata[0]}</b><br>HICP: %{y:.2f}<br>Rozdíl (HICP - CPI): %{customdata[1]:.2f} b.<extra></extra>"
         ))
         
-        # Vykreslení národního CPI s šedou výplní mezi oběma čarami pro vizuální zdůraznění rozdílu
+        # Vykreslení národního CPI
         fig_methodology.add_trace(go.Scatter(
             x=cpi_common.index, 
             y=cpi_common, 
@@ -1144,9 +1157,8 @@ with tab_bazicky:
         )
         st.plotly_chart(fig_methodology, use_container_width=True)
     else:
-        st.warning("Nedostatek společných dat pro srovnání metodiky CPI a HICP.")
-
-
+        st.warning("Nedostatek společných dat pro srovnání. Pro zobrazení grafu vyberte období obsahující alespoň jeden měsíc od ledna 2000.")
+        
 # ==========================================
 # 3. ZÁLOŽKA: MEZIROČNÍ INFLACE
 # ==========================================
@@ -1161,27 +1173,23 @@ with tab_mezirocni:
     latest_date = cpi_yoy_total.index[-1]
     current_pos = cpi_raw.index.get_loc(latest_date)
 
-    if current_pos >= 23:
-        # Nastavení oken pro klouzavý výpočet
-        window_curr_end = cpi_raw.index[current_pos]
-        window_curr_start = cpi_raw.index[current_pos - 11]
-        window_prev_end = cpi_raw.index[current_pos - 12]
-        window_prev_start = cpi_raw.index[current_pos - 23]
-        
-        period_now_str = f"{CZ_MONTHS[window_curr_start.month]} {window_curr_start.year} až {CZ_MONTHS[window_curr_end.month]} {window_curr_end.year}"
-        period_prev_str = f"{CZ_MONTHS[window_prev_start.month]} {window_prev_start.year} až {CZ_MONTHS[window_prev_end.month]} {window_prev_end.year}"
-        
-        # Matematická sumace indexů
-        sum_recent_12 = cpi_raw['Úhrn'].iloc[current_pos-11 : current_pos+1].sum()
-        sum_previous_12 = cpi_raw['Úhrn'].iloc[current_pos-23 : current_pos-11].sum()
-        
-        avg_inflation_val = (sum_recent_12 / sum_previous_12 * 100) - 100
-        help_text_avg = f"Index porovnává součet posledních 12 měsíců ({period_now_str}) vůči součtu předchozích 12 měsíců ({period_prev_str}). Slouží k eliminaci krátkodobých výkyvů."
-    else:
-        # Fallback pro krátké řady (prostý průměr)
-        avg_inflation_val = cpi_yoy_total.mean()
-        help_text_avg = "Prostý průměr zobrazených hodnot (nedostatečná historie pro klouzavý index ČSÚ)." 
-
+    
+    # Nastavení oken pro klouzavý výpočet
+    window_curr_end = cpi_raw.index[current_pos]
+    window_curr_start = cpi_raw.index[current_pos - 11]
+    window_prev_end = cpi_raw.index[current_pos - 12]
+    window_prev_start = cpi_raw.index[current_pos - 23]
+    
+    period_now_str = f"{CZ_MONTHS[window_curr_start.month]} {window_curr_start.year} až {CZ_MONTHS[window_curr_end.month]} {window_curr_end.year}"
+    period_prev_str = f"{CZ_MONTHS[window_prev_start.month]} {window_prev_start.year} až {CZ_MONTHS[window_prev_end.month]} {window_prev_end.year}"
+    
+    # Matematická sumace indexů
+    sum_recent_12 = cpi_raw['Úhrn'].iloc[current_pos-11 : current_pos+1].sum()
+    sum_previous_12 = cpi_raw['Úhrn'].iloc[current_pos-23 : current_pos-11].sum()
+    
+    avg_inflation_val = (sum_recent_12 / sum_previous_12 * 100) - 100
+    help_text_avg = f"Index porovnává součet posledních 12 měsíců ({period_now_str}) vůči součtu předchozích 12 měsíců ({period_prev_str}). Slouží k eliminaci krátkodobých výkyvů."
+  
     # Výpočet extrémů (MAX a MIN) v aktuálním filtru
     max_inf_val = cpi_yoy_total.max()
     max_inf_date = cpi_yoy_total.idxmax()
@@ -1442,57 +1450,74 @@ with tab_mezirocni:
             st.markdown("---")
 
     # --- SEKCE 4: METODIKA CPI vs HICP (ROZDÍL V P. B.) ---
-    st.subheader("4. Metodický rozdíl: CPI (ČR) minus HICP (EU)")
+    hicp_help_text2 = (
+        "Graf meziročního indexu se nevykreslí pro období končící před únorem 2001. HICP data se zjišťují od roku 2000, meziroční srovnání je tak dostupné od ledna 2001 a pro zobrazení spojité čáry v grafu jsou potřeba alespoň dva měsíce."
+    )
+    st.subheader("4. Metodický rozdíl: CPI (ČR) minus HICP (EU)", help=hicp_help_text2)
     st.markdown("O kolik procentních bodů se liší česká metodika od evropské? Modré sloupce ukazují, kdy česká inflace převyšuje tu harmonizovanou. Zásadními faktory odlišnosti jsou započítávání nákladů na vlastnické bydlení (imputovaného nájemného) v českém indexu a naopak zahrnutí útrat cizinců spolu s každoroční aktualizací vah u evropského indexu.")
     
     # Průnik indexů pro srovnatelné období
     common_timeline_yoy = cpi_yoy_filtered.index.intersection(hicp_yoy_filtered.index)
-    method_diff = cpi_yoy_filtered.loc[common_timeline_yoy, 'Úhrn'] - hicp_yoy_filtered.loc[common_timeline_yoy, 'Úhrn']
     
-    diff_dates_cz = format_dates_cz(method_diff.index)
-    diff_values_str = [f"{val:+.2f}".replace('.', ',') for val in method_diff]
-    diff_customdata = np.column_stack((diff_dates_cz, diff_values_str))
+    # Bezpečné omezení zobrazení grafů od ledna 2001
+    if not common_timeline_yoy.empty:
+        mask = pd.to_datetime(common_timeline_yoy) >= pd.to_datetime('2001-01-01')
+        common_timeline_yoy = common_timeline_yoy[mask]
     
-    diff_colors = ['#1f77b4' if val > 0 else '#d95f02' for val in method_diff]
+    if len(common_timeline_yoy) > 1:
+        method_diff = cpi_yoy_filtered.loc[common_timeline_yoy, 'Úhrn'] - hicp_yoy_filtered.loc[common_timeline_yoy, 'Úhrn']
+        
+        diff_dates_cz = format_dates_cz(method_diff.index)
+        diff_values_str = [f"{val:+.2f}".replace('.', ',') for val in method_diff]
+        diff_customdata = np.column_stack((diff_dates_cz, diff_values_str))
+        
+        diff_colors = ['#1f77b4' if val > 0 else '#d95f02' for val in method_diff]
 
-    fig_diff = go.Figure()
+        fig_diff = go.Figure()
 
-    fig_diff.add_trace(go.Bar(
-        x=method_diff.index, 
-        y=method_diff, 
-        marker_color=diff_colors, 
-        name='Rozdíl (p. b.)', 
-        showlegend=False,
-        customdata=diff_customdata,
-        hovertemplate="<b>%{customdata[0]}</b><br>Rozdíl: %{customdata[1]} p. b.<extra></extra>"
-    ))
+        fig_diff.add_trace(go.Bar(
+            x=method_diff.index, 
+            y=method_diff, 
+            marker_color=diff_colors, 
+            name='Rozdíl (p. b.)', 
+            showlegend=False,
+            customdata=diff_customdata,
+            hovertemplate="<b>%{customdata[0]}</b><br>Rozdíl: %{customdata[1]} p. b.<extra></extra>"
+        ))
 
-    # Pomocné stopy pro vytvoření legendy
-    fig_diff.add_trace(go.Bar(x=[None], y=[None], marker_color='#1f77b4', name='Národní CPI je vyšší', hoverinfo='skip'))
-    fig_diff.add_trace(go.Bar(x=[None], y=[None], marker_color='#d95f02', name='Evropské HICP je vyšší', hoverinfo='skip'))
+        # Pomocné stopy pro vytvoření legendy
+        fig_diff.add_trace(go.Bar(x=[None], y=[None], marker_color='#1f77b4', name='Národní CPI je vyšší', hoverinfo='skip'))
+        fig_diff.add_trace(go.Bar(x=[None], y=[None], marker_color='#d95f02', name='Evropské HICP je vyšší', hoverinfo='skip'))
 
-    fig_diff.update_layout(
-        template='plotly_white', height=600,
-        xaxis_title="Rok",
-        yaxis_title="Rozdíl (p. b.)",
-        yaxis=dict(range=[-5, 5], showgrid=True, gridcolor='rgba(0,0,0,0.1)', zeroline=True, zerolinecolor='rgba(51, 51, 51, 0.5)', zerolinewidth=0.7),
-        xaxis=dict(range=axis_view_range, tickformat="%Y", dtick="M12", showgrid=True, gridcolor='rgba(0,0,0,0.1)'),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0.01),
-        margin=dict(l=50, r=50, t=50, b=50),
-        separators=", "
-    )
-    st.plotly_chart(fig_diff, use_container_width=True)
+        fig_diff.update_layout(
+            template='plotly_white', height=600,
+            xaxis_title="Rok",
+            yaxis_title="Rozdíl (p. b.)",
+            yaxis=dict(range=[-5, 5], showgrid=True, gridcolor='rgba(0,0,0,0.1)', zeroline=True, zerolinecolor='rgba(51, 51, 51, 0.5)', zerolinewidth=0.7),
+            xaxis=dict(range=axis_view_range, tickformat="%Y", dtick="M12", showgrid=True, gridcolor='rgba(0,0,0,0.1)'),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0.01),
+            margin=dict(l=50, r=50, t=50, b=50),
+            separators=", "
+        )
+        st.plotly_chart(fig_diff, use_container_width=True)
+    else:
+        st.warning("Nedostatek dat pro srovnání. Pro zobrazení grafu vyberte období zahrnující alespoň jeden měsíc od ledna 2001.")
+
     st.markdown("---")
 
     # --- SEKCE 5: DETAIL BYDLENÍ ---
-    st.subheader("5. Odlišnost metodik CPI a HICP u bydlení")
+    hicp_help_text3 = (
+        "Graf meziročního indexu se nevykreslí pro období končící před únorem 2001. HICP data se zjišťují od roku 2000, meziroční srovnání je tak dostupné od ledna 2001 a pro zobrazení spojité čáry v grafu jsou potřeba alespoň dva měsíce."
+    )
+    st.subheader("5. Odlišnost metodik CPI a HICP u bydlení", help=hicp_help_text3)
     st.markdown("Český index (modrá) zahrnuje do složky bydlení také imputované nájemné, zatímco harmonizovaný evropský index (oranžová) vychází z odlišné metodiky a pracuje zejména s čistými nájmy a energiemi. Zvýrazněná plocha znázorňuje rozdíl mezi oběma přístupy v čase.")
     
     # Nalezení patřičných sloupců v obou datasetech
     col_cpi_housing = next((col for col in cpi_yoy_filtered.columns if '04' in col or 'Bydlení' in col), None)
     col_hicp_housing = next((col for col in hicp_yoy_filtered.columns if '04' in col or 'Bydlení' in col), None)
 
-    if col_cpi_housing and col_hicp_housing:
+    # Kontrola existence datových sloupců a dostatečné délky časové řady (>1) pro vykreslení grafu
+    if col_cpi_housing and col_hicp_housing and len(common_timeline_yoy) > 1:
         cpi_house_series = cpi_yoy_filtered.loc[common_timeline_yoy, col_cpi_housing]
         hicp_house_series = hicp_yoy_filtered.loc[common_timeline_yoy, col_hicp_housing]
         
@@ -1539,8 +1564,8 @@ with tab_mezirocni:
         )
         st.plotly_chart(fig_house, use_container_width=True)
     else:
-        st.warning("Data pro porovnání metodiky v kategorii Bydlení nebyla nalezena.")
-        
+        st.warning("Nedostatek dat pro porovnání metodiky v kategorii Bydlení. Pro zobrazení trendu vyberte alespoň jeden měsíc od ledna 2001.")
+
 # ==========================================
 # 4. ZÁLOŽKA: MEZIMĚSÍČNÍ INFLACE
 # ==========================================
@@ -1619,8 +1644,14 @@ with tab_mezimesicni:
 
     # Funkce pro vyčištění a sjednocení názvů kategorií (odstranění kódů a zkrácení)
     def shorten_category_names(index_obj):
+        # 1. Odstraní čísla a tečky na začátku
         idx = index_obj.str.replace(r'^\d+\.?\s*', '', regex=True)
+        # 2. Nahradí nové řádky mezerou
         idx = idx.str.replace('\n', ' ')
+        # 3. NOVINKA: Nahradí jakýkoliv shluk mezer (včetně nezlomitelných) jednou jedinou mezerou
+        idx = idx.str.replace(r'\s+', ' ', regex=True)
+        # 4. NOVINKA: Odřízne případné mezery na začátku a na konci
+        idx = idx.str.strip()
         
         replacement_map = {
             'Potraviny a nealkoholické nápoje': 'Potraviny a nealko',
@@ -1775,7 +1806,7 @@ with tab_mezimesicni:
     WINDOW_MONTHS = 36 
     
     if len(risk_dataset) < WINDOW_MONTHS:
-        st.warning(f"Zvolené období obsahuje méně než {WINDOW_MONTHS} měsíců. Vykresluji mapu pro celou dostupnou historii.")
+        st.warning(f"Zvolené období obsahuje méně než {WINDOW_MONTHS} měsíců. Vykresluje se mapa pro celou dostupnou historii.")
         recent_window_data = risk_dataset
         selected_period_desc = "Celá dostupná historie"
     else:
@@ -2161,19 +2192,26 @@ with tab_vlastni:
         st.plotly_chart(fig_personal_yoy, use_container_width=True)
         st.markdown("---")
         
-        # --- VIZUALIZACE 3: STRUKTURNÍ POROVNÁNÍ KOŠE ---
+# --- VIZUALIZACE 3: STRUKTURNÍ POROVNÁNÍ KOŠE ---
         st.subheader("4. Srovnání struktury koše (průměr ČR vs. vaše výdaje)")
         st.markdown("Graf ukazuje strukturní rozdíly v rozložení výdajů. Poskytuje detailní pohled na to, u kterých kategorií se vaše osobní útraty (převedené na procentní podíl) nejvíce odchylují od celostátního průměru.")
         
-        # Příprava dat pro horizontální sloupcový graf
-        plot_categories = []
-        plot_weights_csu = []
-        plot_weights_user = []
-        
+        # Příprava dat do dočasného seznamu pro snadné seřazení
+        sorting_data = []
         for cat in category_columns:
-            plot_categories.append(category_metadata[cat]['name'])
-            plot_weights_csu.append(category_metadata[cat]['csu_weight'])
-            plot_weights_user.append(personal_weights_pct[cat])
+            sorting_data.append({
+                'name': category_metadata[cat]['name'],
+                'csu_weight': category_metadata[cat]['csu_weight'],
+                'user_weight': personal_weights_pct[cat]
+            })
+            
+        # Seřazení sestupně podle vah ČSÚ (největší váha bude první)
+        sorting_data.sort(key=lambda x: x['csu_weight'], reverse=True)
+        
+        # Rozbalení seřazených dat do finálních seznamů pro graf
+        plot_categories = [item['name'] for item in sorting_data]
+        plot_weights_csu = [item['csu_weight'] for item in sorting_data]
+        plot_weights_user = [item['user_weight'] for item in sorting_data]
         
         fig_weights_comparison = go.Figure()
         
@@ -2193,7 +2231,7 @@ with tab_vlastni:
             template='plotly_white', barmode='group', height=700,
             xaxis_title="Zastoupení výdajů (%)",
             yaxis=dict(
-                autorange='reversed', 
+                autorange='reversed', # Zaručí, že první (největší) položka ze seznamu bude v grafu úplně nahoře
                 title=None, 
                 tickfont=dict(size=13),
                 tickmode='linear', 
