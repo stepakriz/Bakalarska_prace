@@ -233,7 +233,7 @@ zoom_end = st.sidebar.date_input(
 
 # Kontrola, aby uživatel nezadal konec dřív než začátek
 if zoom_start > zoom_end:
-    st.error("Logická chyba: Počáteční datum ('Načíst OD') nesmí být po koncovém datu ('Načíst DO').")
+    st.error("Logická chyba: Počáteční datum ('OD') nesmí být po koncovém datu ('DO').")
     st.stop()
 
 # Seznam [start, end], který budeme posílat do layoutu grafu
@@ -313,13 +313,9 @@ tab_uvod, tab_vahy, tab_bazicky, tab_mezirocni, tab_mezimesicni, tab_vlastni = s
 
 with tab_uvod:
     st.markdown("""
-    Vítejte v aplikaci zaměřené na analýzu spotřebitelských cen. Nabízí detailní 
-    přehled o vývoji cen zboží a služeb, stejně jako o struktuře výdajů průměrných českých domácností.
-    
-
-    Aplikace umožňuje sledovat dlouhodobý vývoj jednotlivých kategorií spotřebního koše, přičemž
-    poskytuje informace o průměrném růstu, volatilitě či sezónním chování cen. Nabízí také
-    možnost výpočtu osobní míry inflace podle zvolených parametrů.
+    Vítejte v aplikaci zaměřené na analýzu spotřebitelských cen. Aplikace nabízí detailní přehled o vývoji cen zboží a služeb, stejně jako o struktuře výdajů průměrných českých domácností. Hlavním cílem tohoto dashboardu je ukázat, že inflaci nestačí vnímat jen jako 
+    jedno souhrnné číslo. Její jednotlivé složky se totiž mohou dramaticky lišit, což celkový průměr nedokáže reflektovat. Aplikace je rozdělena na úvod,
+    kde se dozvíte vše potřebné (viz níže), na to navazují detailní rozbory a v závěru získané znalosti aplikujete pro výpočet vlastní inflace.
     """)
     
     st.markdown("---")
@@ -1024,8 +1020,8 @@ with tab_bazicky:
 
     # --- SEKCE 3: BYDLENÍ (SPECIFICKÝ SCHODOVÝ GRAF) ---
     st.subheader("3. Specifikum: skokový růst cen bydlení a energií")
-    st.markdown("Kategorie bydlení je velmi diskutovaná. Schodový graf ukazuje, že změny cen nejsou publikovány neustále, ale měsíčně. Díky schodům lze snadněji identifikovat znatelnější zdražení.")
-
+    st.markdown("Kategorie bydlení představuje jednoho z hlavních tahounů inflace. Zvolený schodovitý graf ukazuje, že ceny v této kategorii nerostou v posledních letech plynule, ale skokově. Díky tomuto zobrazení lze snadněji identifikovat nárazové vlny zdražování.")
+    
     # Bezpečné dynamické vyhledání sloupce obsahujícího slovo 'Bydlení'
     housing_col = next((c for c in cpi_rebased.columns if 'Bydlení' in c), None)
     
@@ -1365,14 +1361,53 @@ with tab_mezirocni:
     
     # Custom CSS pro Streamlit slider (červená barva)
     st.markdown(
-        """
-        <style>
-        div[data-baseweb="slider"] > div > div > div:first-child { background-color: #e6e6e6 !important; }
-        div[data-baseweb="slider"] div[role="slider"] { background-color: rgb(255, 75, 75) !important; border-color: rgb(255, 75, 75) !important; }
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
+    """
+    <style>
+    /* 1. Obarvení celé osy (vyplněné i nevyplněné části) na šedou */
+    div[data-baseweb="slider"] > div > div > div:first-child,
+    div[data-baseweb="slider"] > div > div > div:nth-child(2) { 
+        background-color: #e6e6e6 !important; 
+        overflow: visible !important; /* Důležité: zabrání oříznutí našich nových krajních bodů */
+    }
+    
+    /* 2. Samotný posuvník (kolečko) zůstane červený */
+    div[data-baseweb="slider"] div[role="slider"] { 
+        background-color: rgb(255, 75, 75) !important; 
+        border-color: rgb(255, 75, 75) !important; 
+        z-index: 5 !important; /* Zajistí, že červené kolečko bude vždy hezky nad vším ostatním */
+    }
+
+    /* 3. Tvorba malého tyrkysového bodu přesně na ZAČÁTKU šedé linky */
+    div[data-baseweb="slider"] > div > div > div:first-child::before {
+        content: "";
+        position: absolute;
+        left: -6px; /* Lehce ho posuneme na samý okraj */
+        top: 50%;
+        transform: translateY(-50%);
+        width: 700px; /* pro bod dat 7 */
+        height: 4px;
+        background-color: #e6e6e6 !important; /* Tyrkysová barva podle vaší předlohy */
+        border-radius: 0%; /* Zakulacení */
+        z-index: 2;
+    }
+
+    /* 4. Tvorba malého tyrkysového bodu přesně na KONCI šedé linky */
+    div[data-baseweb="slider"] > div > div > div:first-child::after {
+        content: "";
+        position: absolute;
+        right: -6px; /* Lehce ho posuneme na samý okraj */
+        top: 50%;
+        transform: translateY(-50%);
+        width: 700px; /* Velikost bodu */
+        height: 4px;
+        background-color: #e6e6e6!important; 
+        border-radius: 0%;
+        z-index: 2;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
     # Očištění dat o počáteční NaN (první rok řady)
     valid_cpi_data = cpi_yoy_filtered.dropna(subset=['Úhrn'])
@@ -1805,8 +1840,8 @@ with tab_mezimesicni:
     # --- POSUVNÍK PRO VÝBĚR DYNAMICKÉHO ČASOVÉHO OKNA ---
     WINDOW_MONTHS = 36 
     
-    if len(risk_dataset) < WINDOW_MONTHS:
-        st.warning(f"Zvolené období obsahuje méně než {WINDOW_MONTHS} měsíců. Vykresluje se mapa pro celou dostupnou historii.")
+    if len(risk_dataset) <= WINDOW_MONTHS:
+        st.warning(f"Nelze si vybrat období, protože to zvolené obsahuje méně (nebo stejně) než {WINDOW_MONTHS} měsíců. Vykresluje se mapa pro celou dostupnou historii.")
         recent_window_data = risk_dataset
         selected_period_desc = "Celá dostupná historie"
     else:
@@ -1957,7 +1992,7 @@ with tab_vlastni:
         '01': 'Potraviny a nealko', '02': 'Alkohol a tabák', '03': 'Oblečení a obuv',
         '04': 'Bydlení a energie', '05': 'Vybavení bytu', '06': 'Zdraví',
         '07': 'Doprava', '08': 'Telekomunikace', '09': 'Rekreace a kultura',
-        '10': 'Vzdělávání', '11': 'Restaurace a hotely', '12': 'Ostatní zboží a služby'
+        '10': 'Vzdělávání', '11': 'Stravování a ubytování', '12': 'Ostatní zboží a služby'
     }
 
     coicop_help_texts = {
@@ -1971,7 +2006,7 @@ with tab_vlastni:
         '08': "Mobilní tarify, nákup telefonu, internet, poštovní služby.",
         '09': "Knihy, hračky, kina, divadla, zájezdy, sportovní vybavení, poplatky za TV/rozhlas.",
         '10': "Školkovné, školné, jazykové kurzy.",
-        '11': "Obědy v restauracích, kavárny, kantýny, ubytování na dovolené.",
+        '11': "Obědy v restauracích, kavárny, kantýny, fastfood, studentské koleje, hotely.",
         '12': "Kadeřnictví, kosmetika, pojištění, finanční služby, hodinky, šperky."
     }
 
@@ -2068,6 +2103,8 @@ with tab_vlastni:
     total_monthly_spend = sum(user_input_spends.values())
     
     st.metric("Vaše celkové měsíční výdaje", f"{total_monthly_spend:,.0f} Kč".replace(',', ' '))
+
+    st.markdown("*Vaše soukromí je v bezpečí. Zadaná data se nikam neukládají a slouží pouze k jednorázovému výpočtu.*")
     st.markdown("---")
     
     # Ošetření nulového vstupu pro zamezení chyb v následných výpočtech
@@ -2231,7 +2268,7 @@ with tab_vlastni:
             template='plotly_white', barmode='group', height=700,
             xaxis_title="Zastoupení výdajů (%)",
             yaxis=dict(
-                autorange='reversed', # Zaručí, že první (největší) položka ze seznamu bude v grafu úplně nahoře
+                autorange='reversed', 
                 title=None, 
                 tickfont=dict(size=13),
                 tickmode='linear', 
