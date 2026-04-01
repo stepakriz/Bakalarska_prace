@@ -467,7 +467,7 @@ with tab_vahy:
 
         # --- SEKCE 1: DLAŽDICOVÝ GRAF (TREEMAP) ---
         st.subheader("1. Detailní struktura spotřebního koše (2025)")
-        st.markdown("Hierarchický pohled na aktuální složení koše. Velikost obdélníku odpovídá váze dané kategorie ve výdajích domácností. Čím je plocha větší, tím více peněz průměrná domácnost za danou položku utratí. Hlavní kategorie jsou navíc barevně odlišeny.") 
+        st.markdown("Hierarchický pohled na aktuální složení koše. Velikost obdélníku odpovídá váze dané (pod)kategorie ve výdajích domácností. Čím je plocha větší, tím více peněz průměrná domácnost za danou položku utratí. Hlavní kategorie jsou barevně odlišeny, přičemž uvnitř barevných ploch jsou zobrazeny podkategorie.") 
 
         MAIN_FONT_SIZE = "18px" 
 
