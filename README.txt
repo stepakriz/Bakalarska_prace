@@ -48,7 +48,7 @@ Pro spuštění aplikace u vás na počítači potřebujete stáhnout zdrojový 
 - requirements.txt (soubor pro instalaci knihoven)
 
 Požadavky na systém:
-Musíte mít nainstalovaný programovací jazyk Python (ideálně verze 3.13) a potřebné knihovny (Pandas, NumPy, SciPy, Streamlit, Plotly).
+Musíte mít nainstalovaný programovací jazyk Python ze stránky https://www.python.org/downloads/ (ideálně verze 3.13) a potřebné knihovny (Pandas, NumPy, SciPy, Streamlit, Plotly).
 
 Postup instalace a spuštění:
 
@@ -62,7 +62,7 @@ Postup instalace a spuštění:
 
 
   4.  Samotnou aplikaci pak spustíte zadáním tohoto příkazu:
-      streamlit run app.py
+      python -m streamlit run app.py
 
 
 
