@@ -410,7 +410,7 @@ st.markdown(
 # 1. ZÁLOŽKA: VÁHY SPOTŘEBNÍHO KOŠE
 # ==========================================
 with tab_vahy:
-    st.caption("Analýza složení spotřebního koše. Ten stanovuje strukturu výdajů průměrné české domácnosti. Na jejím základě je kategoriím přiřazena váha v % pro výpočet celkové inflace. Pokud je vaše osobní spotřeba jiná, může se vaše individuální inflace od té oficiální lišit. Zároveň uvidíte, jak se tyto priority v čase vyvíjejí.")
+    st.caption("Tato záložka analyzuje složení spotřebního koše a odhaluje tak anatomii běžné české peněženky. Pomocí přehledné dlaždicové mapy a historických grafů zjistíte, jakou váhu mají jednotlivé kategorie při výpočtu celkové inflace a jak se priority spotřebitelů v čase vyvíjejí. Zároveň pochopíte, proč se vaše individuální inflace může od té oficiální lišit.")
 
     # --- SEKCE 0: KONTROLA DAT A VÝPOČET KPI ---
     if weights_tree is not None:
@@ -804,7 +804,7 @@ with tab_vahy:
 # ==========================================
 with tab_bazicky:
     # Úvodní vysvětlení logiky bazického indexu pro uživatele
-    st.caption(f"Bazický index zobrazuje vývoj cenové hladiny v čase. Hodnota 100 je fixována k průměru roku {base_year}. Pokud křivka vystoupá na 120, znamená to, že ceny jsou o 20 % vyšší než v roce {base_year}.")
+    st.caption(f"Bazický index nabízí dlouhodobý pohled na vývoj cenové hladiny. Hodnota 100 reprezentuje průměr roku {base_year}. Pokud křivka vystoupá na 120, znamená to, že ceny jsou o 20 % vyšší než v roce {base_year}. Dále můžete analyzovat, kolik ze své reálné kupní síly ztratila tisícikorunová bankovka, a interaktivní grafy vám navíc detailně přiblíží skokové zdražování v klíčových segmentech, jako je například bydlení.")
 
     TOTAL_COL = 'Úhrn'
     cpi_total = cpi_rebased[TOTAL_COL]
@@ -869,7 +869,7 @@ with tab_bazicky:
             "Vlivem postupného zaokrouhlování se tak mohou zobrazené hodnoty bazických indexů lišit od oficiálních výstupů ČSÚ v řádu 0,1 až 0,2 bodu. "
     ) 
 
-    st.subheader(f"1. Celkový vývoj cenové hladiny (báze {base_year}=100)", help=rebasing_help_text)
+    st.subheader(f"1. Celkový vývoj bazického indexu ({base_year} = 100)", help=rebasing_help_text)
     st.markdown("Základní pohled na úhrnnou inflaci. Červená část křivky zvýrazňuje vývoj od vámi zvoleného referenčního roku do současnosti.")
 
     fig_main = go.Figure()
@@ -925,6 +925,7 @@ with tab_bazicky:
         template='plotly_white', height=500, 
         xaxis_title="Rok",
         yaxis_title=f"Index ({base_year} = 100)", 
+        yaxis_rangemode="tozero",
         xaxis=dict(tickformat="%Y", dtick="M12", showgrid=True, range=axis_view_range), 
         separators=", ",
         showlegend=True,
@@ -935,8 +936,8 @@ with tab_bazicky:
     st.markdown("---")
 
     # --- SEKCE 2: SMALL MULTIPLES (DETAIL KATEGORIÍ) ---
-    st.subheader("2. Detailní vývoj jednotlivých kategorií")
-    st.markdown("Rozpad indexu do 12 hlavních oddílů spotřebního koše. Zde vidíte, jak se vyvíjejí ceny důležitějších položek (oranžová) a těch méně důležitých (modré). Pro lepší srovnání jsou v pozadí světle šedou barvou vykresleny křivky ostatních kategorií.")
+    st.subheader("2. Detailní vývoj bazického indexu podle kategorií")
+    st.markdown("Rozpad indexu do 12 hlavních oddílů spotřebního koše. Zde vidíte, jak se vyvíjejí ceny důležitějších položek (oranžová) a těch méně důležitých (modré). Pro lepší srovnání jsou v pozadí světle šedou barvou vykresleny křivky ostatních kategorií. Graf slouží především k porovnání vývoje jednotlivých kategorií mezi sebou.")
 
     categories = [col for col in cpi_rebased.columns if col != TOTAL_COL]
     n_cols = 3
@@ -1014,12 +1015,13 @@ with tab_bazicky:
     )
     
     fig_categories.update_xaxes(range=axis_view_range, tickformat="%Y", dtick="M12", showgrid=True)
-    fig_categories.update_yaxes(showgrid=True, dtick=20) 
+    max_cpi_val = cpi_rebased[categories].max().max() * 1.10
+    fig_categories.update_yaxes(showgrid=True, dtick=20, range=[0, max_cpi_val]) 
     st.plotly_chart(fig_categories, use_container_width=True)
     st.markdown("---")
 
     # --- SEKCE 3: BYDLENÍ (SPECIFICKÝ SCHODOVÝ GRAF) ---
-    st.subheader("3. Specifikum: skokový růst cen bydlení a energií")
+    st.subheader("3. Specifikum: skokový růst cen kategorie Bydlení, voda, energie a paliva")
     st.markdown("Kategorie bydlení představuje jednoho z hlavních tahounů inflace. Zvolený schodovitý graf ukazuje, že ceny v této kategorii nerostou v posledních letech plynule, ale skokově. Díky tomuto zobrazení lze snadněji identifikovat nárazové vlny zdražování.")
     
     # Bezpečné dynamické vyhledání sloupce obsahujícího slovo 'Bydlení'
@@ -1067,7 +1069,7 @@ with tab_bazicky:
             template='plotly_white', height=450,
             xaxis_title="Rok",
             yaxis_title=f"Index ({base_year}=100)",
-            yaxis=dict(showgrid=True, gridcolor='rgba(0,0,0,0.1)'),
+            yaxis=dict(showgrid=True, gridcolor='rgba(0,0,0,0.1)', rangemode="tozero"),
             xaxis=dict(tickformat="%Y", dtick="M12", showgrid=True, gridcolor='rgba(0,0,0,0.1)', range=axis_view_range),
             showlegend=False,
             margin=dict(t=20),
@@ -1083,7 +1085,7 @@ with tab_bazicky:
     hicp_help_text = (
         "Pokud načtete období končící před únorem 2000 nebo zvolíte základ pro bazický index před rokem 2000, graf s HICP se nevykreslí. Data pro tuto časovou řadu se totiž počítají až od ledna 2000."
     )
-    st.subheader("4. Metodické srovnání: národní (CPI) vs. evropský (HICP) index", help=hicp_help_text)
+    st.subheader("4. Metodické srovnání bazických indexů: CPI vs. HICP", help=hicp_help_text)
     st.markdown("Graf ukazuje rozdíl mezi úhrnným národním indexem (CPI) a harmonizovaným indexem EU (HICP). Zásadními faktory odlišnosti jsou započítávání nákladů na vlastnické bydlení (imputovaného nájemného) v českém indexu a naopak zahrnutí útrat cizinců spolu s každoroční aktualizací vah u evropského indexu.")
     
     # 1. Vyfiltrování měsíců, kde reálně jsou číselná data
@@ -1147,6 +1149,7 @@ with tab_bazicky:
                 showgrid=True, 
                 gridcolor='rgba(0,0,0,0.1)' 
             ), 
+            yaxis_rangemode="tozero",
             legend=dict(x=0.01, y=0.99, bgcolor='rgba(255,255,255,0.8)'),
             margin=dict(t=20),
             separators=", "
@@ -1159,7 +1162,7 @@ with tab_bazicky:
 # 3. ZÁLOŽKA: MEZIROČNÍ INFLACE
 # ==========================================
 with tab_mezirocni:
-    st.caption("Analýza vývoje aktuální inflace. Meziroční index srovnává daný měsíc vůči stejnému měsíci v minulém roce. Pokud určitá komodita v lednu 2024 stojí 40 Kč a v lednu 2025 cena vzrostla na 44 Kč, meziroční inflace je 10 %.")
+    st.caption("Tento nejznámější ukazatel analyzuje aktuální inflaci srovnáním cen v daném měsíci se stejným obdobím loňského roku. Pokud určitá komodita v lednu 2024 stojí 40 Kč a v lednu 2025 cena vzrostla na 44 Kč, meziroční inflace je 10 %. Pomocí přehledné teplotní mapy můžete prozkoumat historické inflační vlny a přesně identifikovat, které konkrétní položky táhly zdražování v dané době nejvíce nahoru. Zároveň zde můžete porovnat metodické rozdíly mezi českým (CPI) a evropským (HICP) měřením inflace.")
     
     # --- SEKCE 0: KLÍČOVÉ UKAZATELE (KPI) ---
     cpi_yoy_total = cpi_yoy_filtered['Úhrn']
@@ -1274,8 +1277,8 @@ with tab_mezirocni:
     st.markdown("---")
 
     # --- SEKCE 2: SMALL MULTIPLES PRO KATEGORIE ---
-    st.subheader("2. Detailní vývoj jednotlivých kategorií")
-    st.markdown("Porovnání vývoje cen v jednotlivých oddílech spotřebního koše. Oranžově jsou zvýrazněny klíčové kategorie (Bydlení, Potraviny), které mají největší dopad na peněženky domácností. Pro lepší srovnání jsou v pozadí světle šedou barvou vykresleny křivky ostatních kategorií.")
+    st.subheader("2. Detailní vývoj meziročního indexu podle kategorií")
+    st.markdown("Graf slouží především k porovnání vývoje cen jednotlivých kategorií mezi sebou. Oranžově jsou zvýrazněny klíčové kategorie (Bydlení, Potraviny), které mají největší dopad na peněženky domácností. Pro lepší srovnání jsou v pozadí světle šedou barvou vykresleny křivky ostatních kategorií.")
     
     hover_fmt_yoy = "<b>%{customdata}</b><br>Inflace: %{y:.2f} %<extra></extra>"
     yoy_categories = [col for col in cpi_yoy_filtered.columns if col != 'Úhrn']
@@ -1356,7 +1359,7 @@ with tab_mezirocni:
     st.markdown("---")
 
     # --- SEKCE 3: ODCHÝLENÍ OD PRŮMĚRNÉ INFLACE (LOLLIPOP CHART) ---
-    st.subheader("3. Které kategorie rostou rychleji než celkový průměr?")
+    st.subheader("3. Které kategorie rostou meziročně rychleji než celkový průměr?")
     st.markdown("Detailní pohled na vybraný měsíc. Graf ukazuje inflaci jednotlivých kategorií a jejich odlišnost od celkového průměru. Červené body v grafu značí nadprůměrný růst cen, modré naopak podprůměrný (nebo pokles).")
     
     # Custom CSS pro Streamlit slider (červená barva)
@@ -1488,7 +1491,7 @@ with tab_mezirocni:
     hicp_help_text2 = (
         "Graf meziročního indexu se nevykreslí pro období končící před únorem 2001. HICP data se zjišťují od roku 2000, meziroční srovnání je tak dostupné od ledna 2001 a pro zobrazení spojité čáry v grafu jsou potřeba alespoň dva měsíce."
     )
-    st.subheader("4. Metodický rozdíl: CPI (ČR) minus HICP (EU)", help=hicp_help_text2)
+    st.subheader("4. Metodické srovnání meziročního indexu: CPI – HICP", help=hicp_help_text2)
     st.markdown("O kolik procentních bodů se liší česká metodika od evropské? Modré sloupce ukazují, kdy česká inflace převyšuje tu harmonizovanou. Zásadními faktory odlišnosti jsou započítávání nákladů na vlastnické bydlení (imputovaného nájemného) v českém indexu a naopak zahrnutí útrat cizinců spolu s každoroční aktualizací vah u evropského indexu.")
     
     # Průnik indexů pro srovnatelné období
@@ -1544,7 +1547,7 @@ with tab_mezirocni:
     hicp_help_text3 = (
         "Graf meziročního indexu se nevykreslí pro období končící před únorem 2001. HICP data se zjišťují od roku 2000, meziroční srovnání je tak dostupné od ledna 2001 a pro zobrazení spojité čáry v grafu jsou potřeba alespoň dva měsíce."
     )
-    st.subheader("5. Odlišnost metodik CPI a HICP u bydlení", help=hicp_help_text3)
+    st.subheader("5. Odlišnost metodik CPI a HICP u meziročního indexu bydlení", help=hicp_help_text3)
     st.markdown("Český index (modrá) zahrnuje do složky bydlení také imputované nájemné, zatímco harmonizovaný evropský index (oranžová) vychází z odlišné metodiky a pracuje zejména s čistými nájmy a energiemi. Zvýrazněná plocha znázorňuje rozdíl mezi oběma přístupy v čase.")
     
     # Nalezení patřičných sloupců v obou datasetech
@@ -1605,7 +1608,7 @@ with tab_mezirocni:
 # 4. ZÁLOŽKA: MEZIMĚSÍČNÍ INFLACE
 # ==========================================
 with tab_mezimesicni:
-    st.caption("Analýza krátkodobých výkyvů. Zobrazuje, jak se cenová hladina mění z měsíce na měsíc a jakou roli v tom hraje sezónnost.")
+    st.caption("Analýza krátkodobých výkyvů zachycuje změny cenové hladiny z měsíce na měsíc a odhaluje tak dynamiku a skrytou sezónnost trhu, jako jsou například lednové výprodeje oblečení. Zjistíte zde, ve kterých měsících se historicky nejvíce zdražuje či zlevňuje, a jaká cenová nestabilita se týkala konkrétních let a kategorií spotřebního koše.")
     
     # --- POMOCNÁ FUNKCE ---
     def geo_mean_pct(series):
@@ -1982,7 +1985,7 @@ with tab_mezimesicni:
 # 5. ZÁLOŽKA: VLASTNÍ INFLACE
 # ==========================================
 with tab_vlastni:
-    st.caption("Spočítejte si vlastní osobní inflaci. Každá domácnost má jiné výdaje. Zadejte své přibližné měsíční útraty a zjistěte, jaká byla vaše skutečná inflace ve srovnání s oficiálními daty ČSÚ.")
+    st.caption("Jelikož má každá domácnost jiné výdaje, tato osobní kalkulačka vám umožní spočítat si reálnou inflaci přesně na míru vašemu životnímu stylu. Zadejte do formuláře své přibližné měsíční útraty, nevyužívané kategorie (např. alkohol) vynulujte a dashboard vám okamžitě ukáže, zda na vás zdražování dopadá silněji, nebo naopak slaběji než na průměrnou domácnost.")
 
     # 1. Extrakce názvů kategorií (bez celkového úhrnu)
     category_columns = [col for col in cpi_raw.columns if col != 'Úhrn']
@@ -2076,7 +2079,7 @@ with tab_vlastni:
     "Tato kalkulačka pro uživatelskou přívětivost modeluje inflaci "
     "na základě vaší aktuální struktury výdajů."
 )
-    st.subheader("1. Nastavení osobních výdajů", help=disclaimer_text)
+    st.subheader("1. Formulář pro nastavení osobních výdajů", help=disclaimer_text)
     st.markdown("Zadejte svou odhadovanou měsíční útratu v Kč pro jednotlivé kategorie (pro zobrazení příkladů položek najeďte myší na ikonu otazníku). Aplikace tyto částky automaticky přepočítá na procentuální váhy vašeho osobního spotřebního koše.")
     
     user_input_spends = {}
@@ -2093,7 +2096,7 @@ with tab_vlastni:
                     f"{meta['name']} (Kč)",
                     min_value=0, 
                     value=int(meta['spend']),
-                    step=500,
+                    step=100,
                     help=meta['help'],
                     key=f"user_input_{idx}"
                 )
@@ -2142,7 +2145,7 @@ with tab_vlastni:
         formatted_dates_my = format_dates_cz(my_index_filtered.index)
         
         # --- VIZUALIZACE 1: BAZICKÝ INDEX ---
-        st.subheader("2. Dlouhodobý vývoj (bazický index)")
+        st.subheader("2. Vývoj bazického indexu osobní inflace")
         st.markdown(f"Graf ukazuje změnu cenové hladiny vůči vybranému základnímu roku ({base_year}=100). Zde můžete sledovat, zda vaše konkrétní struktura výdajů v dlouhodobém horizontu zdražila více než celostátní průměr.")
         
         csu_index_plot = cpi_rebased['Úhrn']
@@ -2179,6 +2182,7 @@ with tab_vlastni:
             xaxis_title="Rok",
             yaxis_title=f"Index ({base_year} = 100)", 
             xaxis=dict(range=axis_view_range, tickformat="%Y", dtick="M12", showgrid=True),
+            yaxis_rangemode="tozero",
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
             margin=dict(t=30, b=20),
             separators=", "
@@ -2187,7 +2191,7 @@ with tab_vlastni:
         st.markdown("---")
         
         # --- VIZUALIZACE 2: MEZIROČNÍ INFLACE ---
-        st.subheader("3. Tempo zdražování (meziroční inflace)")
+        st.subheader("3. Vývoj meziročního indexu osobní inflace")
         st.markdown("Porovnání procentuálního růstu cen oproti stejnému měsíci předchozího roku. Graf odhaluje období, kdy inflace nejvíce ovlivňovala váš osobní rozpočet v porovnání s oficiálními daty.")
 
         csu_yoy_plot = cpi_yoy_filtered['Úhrn']
