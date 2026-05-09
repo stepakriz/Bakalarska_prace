@@ -22,19 +22,19 @@ st.set_page_config(
 # Funkce pro čištění a přípravu zdrojových dat z ČSÚ
 def prep_timeseries(df, date_col):
     """
-    Standardní cleanup pro časové řady:
+    Standardní čištění časové řady:
     - Přejmenuje sloupec s datem na 'Datum'
-    - Vyhází tečky (zástupný znak ČSÚ pro chybějící data) a nahradí je NaN
-    - Převede textové datum (MM/RRRR) na opravdový datetime formát
+    - Odstraní tečky (zástupný znak ČSÚ pro chybějící data) a nahradí je NaN
+    - Převede textové datum (MM/RRRR) na datetime formát
     - Seřadí data podle času a nastaví je jako index
-    - Převede všechna čísla (která jsou v Excelu často jako text) na floaty
+    - Převede všechna čísla (která jsou v Excelu často jako text) na float
     """
     df = df.rename(columns={date_col: "Datum"})
     df = df.replace('.', np.nan).dropna(subset=['Datum'])
     df['Datum'] = pd.to_datetime(df['Datum'], format='%m/%Y', errors='coerce')
     df = df.dropna(subset=['Datum']).sort_values('Datum').set_index('Datum')
     df = df.apply(pd.to_numeric, errors='coerce')
-    df.columns = df.columns.str.replace('\n', ' ') # Odstranění zalomení řádků v názvech sloupců
+    df.columns = df.columns.str.replace('\n', ' ') 
     return df
 
 
@@ -45,7 +45,7 @@ def prep_timeseries(df, date_col):
 @st.cache_data # Cache, aby se Excel nenačítal při každém kliknutí v aplikaci
 def load_inflation_data():
     try:
-        # --- Národní inflace (CPI) ---
+        # --- (CPI) ---
         # Musíme spojit dva soubory, protože ČSÚ v průběhu času změnil kódování (COICOP -> ECOICOP)
         df_cpi_old = pd.read_excel("CPI_1.xlsx")
         df_cpi_new = pd.read_excel("CPI_2.xlsx")
@@ -53,7 +53,7 @@ def load_inflation_data():
         df_cpi_old = df_cpi_old.rename(columns={"Oddíl COICOP": "Datum"})
         df_cpi_new = df_cpi_new.rename(columns={"Oddíl ECOICOP": "Datum"})
         
-        # Merge obou řad do jednoho dataframe
+        # Spojení obou řad do jednoho dataframe
         cpi_raw = pd.concat([df_cpi_old, df_cpi_new], ignore_index=True)
         cpi_raw = prep_timeseries(cpi_raw, "Datum")
         
@@ -61,7 +61,7 @@ def load_inflation_data():
         cpi_yoy = cpi_raw.pct_change(12) * 100
         cpi_mom = cpi_raw.pct_change(1) * 100
 
-        # --- Evropská inflace (HICP) ---
+        # --- HICP ---
         hicp_raw = pd.read_excel("HICP.xlsx")
         hicp_raw = prep_timeseries(hicp_raw, "Oddíl COICOP")
         hicp_yoy = hicp_raw.pct_change(12) * 100
@@ -92,7 +92,7 @@ def load_weights_data():
     try:
         weights_tree = pd.read_excel('spot_kos2025_podrobne.xlsx')
         
-        # ČSÚ má váhy v promile, my je chceme v procentech (děleno 10)
+        # ČSÚ má váhy v promile, převedeno v procenta (děleno 10)
         if weights_tree['VÁHA v ‰'].dtype == 'O':
             weights_tree['VÁHA v ‰'] = weights_tree['VÁHA v ‰'].astype(str).str.replace(',', '.').astype(float)
         weights_tree['Weight_Pct'] = weights_tree['VÁHA v ‰'] / 10
@@ -107,14 +107,14 @@ def load_weights_data():
             '10': 'Vzdělávání', '11': 'Stravování a ubytování', '12': 'Ostatní zboží a služby'
         }
         
-        # Funkce na vytáhnutí prvních dvou čísel z kódu (např. 01.1.2 -> 01)
+        # Funkce na vyfiltrování prvních dvou čísel z kódu (např. 01.1.2 -> 01)
         def extract_main_category(code):
             base_code = str(code).strip().split('.')[0]
             return '0' + base_code if len(base_code) == 1 and base_code.isdigit() else base_code
 
         weights_tree['Main_Code'] = weights_tree['ECOICOP'].apply(extract_main_category)
         
-        # Do stromové mapy bereme jen položky s tečkou (podkategorie), ne celkové úhrny
+        # Do treemap se vyberou položky s tečkou (podkategorie), ne celkový úhrn
         subcategories_only = weights_tree[weights_tree['ECOICOP'].astype(str).str.contains('.', regex=False)].copy()
         subcategories_only['Main_Category_Name'] = subcategories_only['Main_Code'].map(category_names).fillna(subcategories_only['Main_Code'])
         
@@ -126,10 +126,10 @@ def load_weights_data():
         weights_history = pd.read_excel('vahy_v_letech.xlsx')
         weights_history.columns = weights_history.columns.astype(str)
         
-        # Nechceme řádek "ÚHRN", zajímají nás ty dílčí části
+        # Vyjmutí úhrnu
         weights_history = weights_history[weights_history['NAZEV'] != 'ÚHRN'].copy()
         
-        # Projdeme všechny sloupce, co jsou roky, a převedeme promile na procenta
+        # iterace sloupců s roky a převod na procenta
         year_columns = [col for col in weights_history.columns if col.isdigit()]
         for year in year_columns:
             weights_history[year] = weights_history[year].astype(str).str.replace(',', '.')
@@ -142,7 +142,7 @@ def load_weights_data():
     return subcategories_only, weights_history
 
 
-# Spuštění loadovacích funkcí
+# Spuštění načítacích funkcí
 cpi_raw, cpi_yoy, cpi_mom, hicp_raw, hicp_yoy = load_inflation_data()
 weights_tree, weights_history = load_weights_data()
 
@@ -236,7 +236,7 @@ if zoom_start > zoom_end:
     st.error("Logická chyba: Počáteční datum ('OD') nesmí být po koncovém datu ('DO').")
     st.stop()
 
-# Seznam [start, end], který budeme posílat do layoutu grafu
+# Seznam [start, end], který se bude posílat do grafů
 axis_view_range = [str(zoom_start), str(zoom_end)]
 
 st.sidebar.markdown("---")
@@ -265,7 +265,7 @@ if cpi_base_subset.empty:
     st.error(f"Základní data pro výpočet bazického roku {base_year} zcela chybí.")
     st.stop()
 
-# Vydělíme celou řadu průměrem dané kageorie bazického roku a vynásobíme 100
+# Dělení celé řady průměrem dané kageorie bazického roku a vynásobení 100
 cpi_base_mean = cpi_base_subset.mean()
 cpi_rebased = (cpi_filtered / cpi_base_mean) * 100
 
@@ -276,7 +276,7 @@ if not hicp_base_subset.empty:
     hicp_base_mean = hicp_base_subset.mean()
     hicp_rebased = (hicp_filtered / hicp_base_mean) * 100
 else:
-    # Pokud pro HICP data v daném roce nejsou, vrátíme jen prázdná data (NaN)
+    # Pokud pro HICP data v daném roce nejsou, vrátí se jen prázdná data (NaN)
     hicp_rebased = hicp_filtered * np.nan
 
 
@@ -286,7 +286,7 @@ else:
 
 st.title("Interaktivní dashboard pro analýzu inflace v ČR")
 
-# Zobrazení horních metrik (KPI)
+# Zobrazení důležitých statistik (KPI)
 total_months = len(cpi_filtered)
 str_start_date = cpi_filtered.index[0].strftime("%m.%Y")
 str_end_date = cpi_filtered.index[-1].strftime("%m.%Y")
@@ -418,7 +418,7 @@ with tab_vahy:
         total_main_categories = 12
         total_subcategories = len(weights_tree)
         
-        # Nalezení řádku s nejvyšší vahou (dominantní položka)
+        # Nalezení řádku s nejvyšší vahou 
         dominant_item_row = weights_tree.loc[weights_tree['Weight_Pct'].idxmax()]
         dominant_item_name = dominant_item_row['NAZEV']
         dominant_item_weight = dominant_item_row['Weight_Pct']
@@ -538,7 +538,7 @@ with tab_vahy:
 
             return "Specifické položky této kategorie"
 
-        # Příprava dat pro Treemap (parsování a formátování názvů)
+        # Příprava dat pro Treemap (formátování názvů)
         weights_tree['Parsed_Main_Code'] = weights_tree['ECOICOP'].apply(parse_main_category_code)
         is_subcategory = weights_tree['ECOICOP'].astype(str).str.contains('.', regex=False)
         treemap_subcategories = weights_tree[is_subcategory].copy()
@@ -641,7 +641,7 @@ with tab_vahy:
 
         weights_history_sorted['Mapped_Name'] = weights_history_sorted['NAZEV'].apply(normalize_history_category_names)
         
-        # Seřazení kategorií podle jejich celkové historické váhy (největší vykreslujeme jako první/dole)
+        # Seřazení kategorií podle jejich celkové historické váhy (největší se vykresluje jako první/dole)
         weights_history_sorted['Aggregate_Weight'] = weights_history_sorted[basket_years].sum(axis=1)
         weights_history_sorted = weights_history_sorted.sort_values(by='Aggregate_Weight', ascending=False)
         
@@ -1242,7 +1242,7 @@ with tab_mezirocni:
         
         heatmap_matrix = heatmap_df.pivot(index='Year', columns='Month', values='Úhrn')
         
-        # Příprava českých popisků pro hover
+        # Příprava popisků pro hover
         hover_matrix = [[f"{CZ_MONTHS[m]} {y}" for m in heatmap_matrix.columns] for y in heatmap_matrix.index]
 
         # Přejmenování sloupců na zkratky měsíců
@@ -1686,9 +1686,9 @@ with tab_mezimesicni:
         idx = index_obj.str.replace(r'^\d+\.?\s*', '', regex=True)
         # 2. Nahradí nové řádky mezerou
         idx = idx.str.replace('\n', ' ')
-        # 3. NOVINKA: Nahradí jakýkoliv shluk mezer (včetně nezlomitelných) jednou jedinou mezerou
+        # 3. Nahradí jakýkoliv shluk mezer jednou jedinou mezerou
         idx = idx.str.replace(r'\s+', ' ', regex=True)
-        # 4. NOVINKA: Odřízne případné mezery na začátku a na konci
+        # 4. Odřízne případné mezery na začátku a na konci
         idx = idx.str.strip()
         
         replacement_map = {
@@ -1866,7 +1866,7 @@ with tab_mezimesicni:
         
     st.markdown(f"**{selected_period_desc}**")
     
-    # Metodika: Výpočet IQR (Mezikvartilového rozpětí) jakožto robustní míry volatility
+    # Výpočet IQR (Mezikvartilového rozpětí) 
     def robust_volatility_iqr(series):
         return series.quantile(0.75) - series.quantile(0.25)
     
@@ -1898,7 +1898,7 @@ with tab_mezimesicni:
             for name, val in zip(weights_history['NAZEV'], weights_history['2025'])
         }
 
-    # Přiřazení vah s ochranným zamezením neviditelně malých bodů (clip)
+    # Přiřazení vah s ochranným zamezením neviditelně malých bodů 
     risk_metrics['Weight'] = risk_metrics.index.map(lambda x: weights_dict.get(extract_category_key(x), 5.0))
     risk_metrics['Weight'] = risk_metrics['Weight'].fillna(1.0).clip(lower=1.0)
     
@@ -1963,7 +1963,7 @@ with tab_mezimesicni:
         separators=", "
     )
     
-    # Automatizované umístění anotací do 4 kvadrantů
+    # Automatizované umístění položek do 4 kvadrantů
     annotations_config = [
         dict(x=0.99, y=0.98, text="VYSOKÁ VOLATILITA<br>& VYSOKÝ RŮST<br>(Rizikové)", color="#d62728", xanchor="right", yanchor="top"),
         dict(x=0.01, y=0.98, text="VYSOKÁ VOLATILITA<br>& NÍZKÝ RŮST<br>(Nepředvídatelné)", color="#d95f02", xanchor="left", yanchor="top"),
