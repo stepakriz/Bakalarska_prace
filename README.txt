@@ -45,10 +45,10 @@ Pro spuštění aplikace u vás na počítači potřebujete stáhnout zdrojový 
 - HICP.xlsx (datový soubor)
 - spot_kos2025_podrobne.xlsx (datový soubor)
 - vahy_v_letech.xlsx (datový soubor)
-- requirements.txt (soubor pro instalaci knihoven)
+- requirements.txt (soubor pro instalaci konkrétních verzí knihoven)
 
 Požadavky na systém:
-Musíte mít nainstalovaný programovací jazyk Python ze stránky https://www.python.org/downloads/ (ideálně verze 3.13) a potřebné knihovny (Pandas, NumPy, SciPy, Streamlit, Plotly).
+Musíte mít nainstalovaný programovací jazyk Python ze stránky https://www.python.org/downloads/ (ideálně verze 3.13) a potřebné knihovny (Pandas 2.3.3, NumPy 2.4.3, SciPy 1.17.1, Streamlit 1.53.1, Plotly 3.1.5).
 
 Postup instalace a spuštění:
 
@@ -58,7 +58,7 @@ Postup instalace a spuštění:
       cd "C:\Cesta\K\Vasi\Slozce"
 
   3.  Pro instalaci všech potřebných knihoven zadejte tento příkaz a potvrďte klávesou Enter:
-      pip install -r requirements.txt
+      python -m pip install -r requirements.txt
 
 
   4.  Samotnou aplikaci pak spustíte zadáním tohoto příkazu:
