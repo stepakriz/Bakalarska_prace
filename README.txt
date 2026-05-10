@@ -32,7 +32,7 @@ Jak stáhnout aplikaci do počítače:
 
    4. Na stažený soubor klikněte pravým tlačítkem myši a zvolte Extrahovat vše.
 
-   5. Tím získáte složku se všemi potřebnými soubory (kód app0.py, data i requirements.txt), se kterou budete dále pracovat.
+   5. Tím získáte složku se všemi potřebnými soubory (kód app.py, data i requirements.txt), se kterou budete dále pracovat.
 
 
 LOKÁLNÍ SPUŠTĚNÍ
@@ -46,6 +46,7 @@ Pro spuštění aplikace u vás na počítači potřebujete stáhnout zdrojový 
 - spot_kos2025_podrobne.xlsx (datový soubor)
 - vahy_v_letech.xlsx (datový soubor)
 - requirements.txt (soubor pro instalaci konkrétních verzí knihoven)
+- config.toml ve složce .streamlit (zajištuje světlý vzhled aplikace)
 
 Požadavky na systém:
 Musíte mít nainstalovaný programovací jazyk Python ze stránky https://www.python.org/downloads/ (ideálně verze 3.13) a potřebné knihovny (Pandas 2.3.3, NumPy 2.4.3, SciPy 1.17.1, Streamlit 1.53.1, Plotly 3.1.5).
