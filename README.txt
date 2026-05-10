@@ -49,7 +49,8 @@ Pro spuštění aplikace u vás na počítači potřebujete stáhnout zdrojový 
 - config.toml ve složce .streamlit (zajištuje světlý vzhled aplikace)
 
 Požadavky na systém:
-Musíte mít nainstalovaný programovací jazyk Python ze stránky https://www.python.org/downloads/ (ideálně verze 3.13) a potřebné knihovny (Pandas 2.3.3, NumPy 2.4.3, SciPy 1.17.1, Streamlit 1.53.1, Plotly 3.1.5).
+Musíte mít nainstalovaný programovací jazyk Python ze stránky https://www.python.org/downloads/ (ideálně verze 3.13) a potřebné knihovny (Pandas 2.3.3, NumPy 2.4.3, SciPy 1.17.1, Streamlit 1.53.1, Plotly 3.1.5). Při instalaci Pythonu hned na první obrazovce nezapomeňte dole zaškrtnout políčko Add python.exe to PATH. Jinak Vám nebudou fungovat příkazy v příkazovém řádku.
+
 
 Postup instalace a spuštění:
 
