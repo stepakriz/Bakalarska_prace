@@ -46,7 +46,7 @@ def prep_timeseries(df, date_col):
 def load_inflation_data():
     try:
         # --- (CPI) ---
-        # Musíme spojit dva soubory, protože ČSÚ v průběhu času změnil kódování (COICOP -> ECOICOP)
+        # Nutné spojit dva soubory, protože ČSÚ v průběhu času změnil kódování (COICOP -> ECOICOP)
         df_cpi_old = pd.read_excel("CPI_1.xlsx")
         df_cpi_new = pd.read_excel("CPI_2.xlsx")
         
@@ -129,7 +129,7 @@ def load_weights_data():
         # Vyjmutí úhrnu
         weights_history = weights_history[weights_history['NAZEV'] != 'ÚHRN'].copy()
         
-        # iterace sloupců s roky a převod na procenta
+        # Iterace sloupců s roky a převod na procenta
         year_columns = [col for col in weights_history.columns if col.isdigit()]
         for year in year_columns:
             weights_history[year] = weights_history[year].astype(str).str.replace(',', '.')
@@ -210,7 +210,7 @@ st.sidebar.caption("Nastavte počáteční výřez pro všechny grafy. Tato volb
 filtered_min_date = cpi_filtered.index.min().date()
 filtered_max_date = cpi_filtered.index.max().date()
 
-# Defaultně zoomujeme na posledních 7 let
+# Defaultní zoom na posledních 7 let
 seven_years_offset = (pd.to_datetime(filtered_max_date) - pd.DateOffset(years=7)).date()
 default_zoom = max(filtered_min_date, seven_years_offset)
 default_zoom = min(default_zoom, filtered_max_date)
@@ -1366,35 +1366,35 @@ with tab_mezirocni:
     st.markdown(
     """
     <style>
-    /* 1. Obarvení celé osy (vyplněné i nevyplněné části) na šedou */
+    
     div[data-baseweb="slider"] > div > div > div:first-child,
     div[data-baseweb="slider"] > div > div > div:nth-child(2) { 
         background-color: #e6e6e6 !important; 
-        overflow: visible !important; /* Důležité: zabrání oříznutí našich nových krajních bodů */
+        overflow: visible !important; 
     }
     
-    /* 2. Samotný posuvník (kolečko) zůstane červený */
+    
     div[data-baseweb="slider"] div[role="slider"] { 
         background-color: rgb(255, 75, 75) !important; 
         border-color: rgb(255, 75, 75) !important; 
-        z-index: 5 !important; /* Zajistí, že červené kolečko bude vždy hezky nad vším ostatním */
+        z-index: 5 !important; 
     }
 
-    /* 3. Tvorba malého tyrkysového bodu přesně na ZAČÁTKU šedé linky */
+    
     div[data-baseweb="slider"] > div > div > div:first-child::before {
         content: "";
         position: absolute;
-        left: -6px; /* Lehce ho posuneme na samý okraj */
+        left: -6px; 
         top: 50%;
         transform: translateY(-50%);
-        width: 700px; /* pro bod dat 7 */
+        width: 700px; 
         height: 4px;
-        background-color: #e6e6e6 !important; /* Tyrkysová barva podle vaší předlohy */
-        border-radius: 0%; /* Zakulacení */
+        background-color: #e6e6e6 !important; 
+        border-radius: 0%; 
         z-index: 2;
     }
 
-    /* 4. Tvorba malého tyrkysového bodu přesně na KONCI šedé linky */
+    
     div[data-baseweb="slider"] > div > div > div:first-child::after {
         content: "";
         position: absolute;
@@ -1848,7 +1848,7 @@ with tab_mezimesicni:
         recent_window_data = risk_dataset
         selected_period_desc = "Celá dostupná historie"
     else:
-        #Generování textových popisků pro posuvník ve formátu MM.YYYY
+        # Generování textových popisků pro posuvník ve formátu MM.YYYY
         all_dates_str = [idx.strftime("%m.%Y") for idx in risk_dataset.index]
         available_endpoints = all_dates_str[WINDOW_MONTHS - 1:]
         
@@ -2233,7 +2233,7 @@ with tab_vlastni:
         st.plotly_chart(fig_personal_yoy, use_container_width=True)
         st.markdown("---")
         
-# --- VIZUALIZACE 3: STRUKTURNÍ POROVNÁNÍ KOŠE ---
+        # --- VIZUALIZACE 3: STRUKTURNÍ POROVNÁNÍ KOŠE ---
         st.subheader("4. Srovnání struktury koše (průměr ČR vs. vaše výdaje)")
         st.markdown("Graf ukazuje strukturní rozdíly v rozložení výdajů. Poskytuje detailní pohled na to, u kterých kategorií se vaše osobní útraty (převedené na procentní podíl) nejvíce odchylují od celostátního průměru.")
         
